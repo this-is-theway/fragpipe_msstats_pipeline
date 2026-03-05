@@ -302,20 +302,91 @@ prepare_comparison_results <- function(comparison_data, comparison_name,
         # Label top significant genes
         top_up <- comparison_data %>%
           dplyr::filter(Significance == "Up") %>%
-          arrange(adj.pvalue) %>%
-          head(10)
+          arrange(adj.pvalue)
+        
+        if (length(top_up) > 30) {
+          top_up <- head(top_up, 30)
+        }
         
         top_down <- comparison_data %>%
           dplyr::filter(Significance == "Down") %>%
-          arrange(adj.pvalue) %>%
-          head(10)
+          arrange(adj.pvalue)
+        
+        if (length(top_down) > 30) {
+          top_down <- head(top_down, 30)
+        }
         
         comparison_data$Label[comparison_data$Protein %in% c(top_up$Protein, top_down$Protein)] <- 
           comparison_data$Gene_name[comparison_data$Protein %in% c(top_up$Protein, top_down$Protein)]
         
+        
+        
+        # Create MA plot
+        comparison_data$baseMean <- 2^rowMeans(cbind(
+          comparison_data$log2FC + log2(comparison_data$SE),
+          log2(comparison_data$SE)
+        ), na.rm = TRUE)
+        
         # Prepare data subsets for labeling
         data_highlight <- comparison_data[comparison_data$Label != "" & comparison_data$Highlight == TRUE, ]
         data_regular <- comparison_data[comparison_data$Label != "" & comparison_data$Highlight == FALSE, ]
+        
+        ma_plot <- ggplot(comparison_data, aes(x = log10(baseMean), y = log2FC)) +
+          geom_point(aes(color = Significance), alpha = 0.6, size = 1.5) +
+          scale_color_manual(values = c("Up" = "#d62728", "Down" = "#1f77b4", "NS" = "gray70")) +
+          geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+          geom_hline(yintercept = c(-log2(fc_cutoff), log2(fc_cutoff)), 
+                     linetype = "dashed", color = "gray40") +
+          labs(
+            title = paste("MA Plot:", comparison_name),
+            subtitle = paste0("Mean expression vs. fold change (FC cutoff: ", fc_cutoff, ")"),
+            x = "log10(Mean Expression)",
+            y = "log2(Fold Change)",
+            color = "Regulation"
+          ) +
+          theme_bw(base_size = 12) +
+          theme(
+            plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+            plot.subtitle = element_text(hjust = 0.5, size = 10),
+            legend.position = "right",
+            panel.grid.minor = element_blank()
+          )
+        
+        # Add regular labels layer
+        if (nrow(data_regular) > 0) {
+          ma_plot <- ma_plot +
+            geom_text_repel(
+              data = data_regular,
+              aes(label = Label),
+              size = 3.5,
+              fontface = "plain",
+              max.overlaps = 20,
+              box.padding = 0.5,
+              point.padding = 0.3,
+              segment.color = "gray50",
+              segment.size = 0.3,
+              min.segment.length = 0
+            )
+        }
+        
+        # Add highlighted labels layer (bold and larger)
+        if (nrow(data_highlight) > 0) {
+          ma_plot <- ma_plot +
+            geom_text_repel(
+              data = data_highlight,
+              aes(label = Label),
+              size = 3.5,
+              fontface = "bold",
+              color = "black",
+              max.overlaps = 20,
+              box.padding = 0.6,
+              point.padding = 0.4,
+              segment.color = "gray30",
+              segment.size = 0.5,
+              min.segment.length = 0
+            )
+        }
+        
         
         # Create base volcano plot
         volcano_plot <- ggplot(comparison_data, aes(x = log2FC, y = -log10(adj.pvalue))) +
@@ -364,7 +435,7 @@ prepare_comparison_results <- function(comparison_data, comparison_name,
             geom_text_repel(
               data = data_highlight,
               aes(label = Label),
-              size = 4.5,
+              size = 3.5,
               fontface = "bold",
               color = "black",
               max.overlaps = 20,
@@ -376,32 +447,6 @@ prepare_comparison_results <- function(comparison_data, comparison_name,
             )
         }
         
-        # Create MA plot
-        comparison_data$baseMean <- 2^rowMeans(cbind(
-          comparison_data$log2FC + log2(comparison_data$SE),
-          log2(comparison_data$SE)
-        ), na.rm = TRUE)
-        
-        ma_plot <- ggplot(comparison_data, aes(x = log10(baseMean), y = log2FC)) +
-          geom_point(aes(color = Significance), alpha = 0.6, size = 1.5) +
-          scale_color_manual(values = c("Up" = "#d62728", "Down" = "#1f77b4", "NS" = "gray70")) +
-          geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
-          geom_hline(yintercept = c(-log2(fc_cutoff), log2(fc_cutoff)), 
-                     linetype = "dashed", color = "gray40") +
-          labs(
-            title = paste("MA Plot:", comparison_name),
-            subtitle = paste0("Mean expression vs. fold change (FC cutoff: ", fc_cutoff, ")"),
-            x = "log10(Mean Expression)",
-            y = "log2(Fold Change)",
-            color = "Regulation"
-          ) +
-          theme_bw(base_size = 12) +
-          theme(
-            plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
-            plot.subtitle = element_text(hjust = 0.5, size = 10),
-            legend.position = "right",
-            panel.grid.minor = element_blank()
-          )
         
         # Calculate statistics
         n_up <- sum(comparison_data$Significance == "Up", na.rm = TRUE)

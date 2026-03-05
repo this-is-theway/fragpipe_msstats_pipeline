@@ -37,6 +37,7 @@ process MSSTATS_REPORT {
             comparisons_file     = '\$PWD/${comparisons_file}',
             highlight_genes_file = '\$PWD/${highlight_genes_file}',
             scripts_dir          = '\$PWD/${scripts}',
+            imputation_method    = ${params.imputation_method}
             pvalue_cutoff        = ${params.fdr_threshold},
             fc_cutoff            = ${params.log2fc_threshold},
             species              = '${params.species}',
