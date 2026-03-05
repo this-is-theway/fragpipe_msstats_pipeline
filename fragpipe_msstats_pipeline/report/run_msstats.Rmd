@@ -1,0 +1,274 @@
+---
+title: "`r params$report_title`"
+author: 
+  - name: "`r params$report_author`"
+    avatar: ./img/logo.png
+    title: Bioinformatics Facility
+date: "`r Sys.Date()`"
+output: 
+  readthedown::readthedown:
+    highlight: kate
+    toc_depth: 2
+    number_sections: true
+    toc_float:
+      collapsed: yes
+      smooth_scroll: no
+params:
+  input_file: "msstats.csv"
+  comparisons_file: "comparisons.csv"
+  highlight_genes_file: "genes_to_highlight.txt"
+  scripts_dir: "scripts"
+  pvalue_cutoff: 0.05
+  fc_cutoff: 1.5
+  species: "mouse"
+  report_title: "Proteomics Analysis Report"
+  report_author: "Jacek Szymanski"
+---
+
+```{css, echo=FALSE, message=FALSE}
+.columns {display: flex;}
+h1 {color: #1d2355;}
+h2 {color: #1d2355;}
+h3 {color: #1d2355;}
+h4 {color: #1d2355;}
+
+h1 .header-section-number::after {
+  content: ".";
+}
+
+.navbar-inverse {
+  background-color: #1d2355;
+}
+.navbar-inverse .navbar-brand {
+  color: #F5EEFF;
+}
+.navbar-inverse .navbar-nav>li>a {
+  color: #F5EEFF;
+}
+.navbar-inverse .navbar-nav>.active>a {
+  background-color: #1d2355;
+}
+.list-group-item.active {
+  background-color: #1d2355;
+  border-color: #1d2355;
+}
+item.active, .list-group-item.active:hover {
+  background-color: #1d2355;
+  border-color: #1d2355;
+}
+#content{
+    max-width:1150px;
+}
+#sidebar {
+  background: #2a337b;
+}
+#sidebar > h2 {
+  background-color: #191970;
+}
+
+#postamble{
+    background:#1d2355;
+    border-top:solid 10px #1d2355;
+}
+
+.nav-pills > li.active > a, 
+.nav-pills > li.active > a:focus, 
+.nav-pills > li.active > a:hover {
+    background-color: #2a337b !important;
+    border-color: #191970 !important;
+}
+
+.nav-pills > li > a {
+    background-color: #191970 !important;
+    color: #dee2e6 !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+.nav-pills > li > a:hover {
+    background-color: #2a337b !important;
+    color: #F5EEFF !important;
+}
+
+```
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	fig.align = 'center'
+)
+
+knitr::opts_knit$set(output.dir = getwd())
+
+rowCallback <- c(
+    "function(row, data){",
+    "  for(var i=0; i<data.length; i++){",
+    "    if(data[i] === null){",
+    "      $('td:eq('+i+')', row).html('NA')",
+    "        .css({'color': 'rgb(151,151,151)', 'font-style': 'italic'});",
+    "    }",
+    "  }",
+    "}"
+  )
+
+library(MSstatsAlt)
+library(DT)
+
+# Suppress ALL MSstats/futile.logger messages
+futile.logger::flog.threshold(futile.logger::FATAL, name = "MSstats")
+futile.logger::flog.threshold(futile.logger::FATAL) 
+
+# ------------------------------------------------------------------
+# Make params available to sourced scripts as plain variables
+# ------------------------------------------------------------------
+input_file          <- params$input_file
+comparisons_file    <- params$comparisons_file
+highlight_genes_file <- params$highlight_genes_file
+scripts_dir         <- params$scripts_dir
+pvalue_cutoff       <- params$pvalue_cutoff
+fc_cutoff           <- params$fc_cutoff
+species             <- params$species
+```
+
+# Introduction
+
+This report presents the results of **Label-Free Quantification (LFQ)** analysis of LC-MS/MS proteomics data. The analysis pipeline utilizes **MSstats**, a robust statistical framework for quantitative proteomics, to identify differentially expressed proteins between experimental conditions.
+
+**Pipeline Overview**
+
+- **Data Import** - Conversion of search engine outputs to MSstats format
+- **Preprocessing** - Log transformation, normalization, and protein summarization
+- **Quality Control** - Distribution analysis and PCA visualization
+- **Differential Expression** - Statistical testing with multiple testing correction
+- **Annotation** - Gene symbol and functional annotation of identified proteins
+
+
+```{r load-data, echo=FALSE, results='hide'}
+source(file.path(scripts_dir, "01_load_data.R"))
+```
+
+# Preprocessing
+
+**Processing steps**
+
+- **Log Transformation (log2)** - Variance stabilization and normality
+- **Normalization (equalizeMedians)** - Correction of systematic run-to-run variation
+- **Feature Selection (topN)** - Selection of most abundant peptides per protein
+- **Summarization (TMP)** - Tukey Median Polish for robust protein abundance estimation
+- **Missing Values (AFT model)** - Model-based imputation for censored data
+
+```{r preprocessing, echo=FALSE, results='hide'}
+source(file.path(scripts_dir, "02_preprocessing.R"))
+
+```
+
+---
+
+# Quality Control
+
+Quality control assessment evaluates data quality and identifies potential issues before differential expression analysis.
+
+```{r qc-plots, echo=FALSE, out.width="75%", fig.align='center', fig.height=7}
+source(file.path(scripts_dir, "03_quality_control.R"))
+
+```
+
+## Intensity Distribution
+
+Box plots display the distribution of log2-transformed peptide intensities for each sample, enabling assessment of overall signal intensity, distribution spread, normalization effectiveness, and outlier detection.
+
+
+```{r echo=FALSE, out.width="75%", fig.align='center', fig.height=7}
+print(dist_plot)
+```
+
+**How to Interpret**
+
+- **Good quality** - Similar median levels across samples, consistent box widths
+- **Warning signs** - Shifted medians, compressed or expanded distributions, many outliers
+- **Poor quality** - Dramatically different distributions between replicates of the same condition
+
+
+## Principal Component Analysis (PCA)
+
+Principal Component Analysis reduces high-dimensional proteomics data to visualize sample relationships. PC1 and PC2 are the first two principal components capturing maximum variance. Biological replicates should cluster together, while unexpected clustering may indicate batch effects.
+
+```{r echo=FALSE, out.width="75%", fig.align='center', fig.height=6}
+print(pca_plot)
+
+```
+
+**How to Interpret**
+
+- **Expected pattern** - Clear separation between experimental conditions along PC1 or PC2
+- **Good reproducibility** - Tight clustering of biological replicates
+- **Batch effect** - Samples cluster by processing batch rather than biological condition
+- **Outlier** - Single sample far from its expected group (consider removal)
+
+---
+
+# Differential Expression
+
+Differential expression analysis was performed to identify proteins with statistically significant abundance changes. 
+
+**Statistical framework**
+
+- **Model** - Linear mixed-effects model accounting for biological and technical variation
+- **Fold Change** - Log2 ratio of mean abundances between conditions
+- **P-value** - Probability of observing the difference by chance
+- **Adjusted P-value** - Benjamini-Hochberg FDR correction for multiple testing
+- **Significance Thresholds** - adj.p-value < `r pvalue_cutoff`, fold change > `r fc_cutoff`
+
+
+```{r differential, echo=FALSE, results='hide'}
+source(file.path(scripts_dir, "04_differential.R"))
+
+# Get all comparison names
+comparison_names <- names(annotated_results)
+
+if (file.exists(highlight_genes_file)) {
+  highlight_genes <- readLines(highlight_genes_file, warn = FALSE)
+  highlight_genes <- trimws(highlight_genes)
+  highlight_genes <- highlight_genes[highlight_genes != ""]
+} else {
+  highlight_genes <- c()
+}
+
+# Store the working directory for child documents
+main_wd <- getwd()
+
+```
+
+```{r render-all-comparisons, results='asis'}
+# FIX: Ensure output.dir is set before knit_child to prevent setwd() errors
+knitr::opts_knit$set(output.dir = main_wd)
+
+# Render analysis for each comparison using child template
+out <- NULL
+for (comparison_name in comparison_names) {
+  out <- c(out, knitr::knit_child(
+    file.path(scripts_dir, "comparison_template.Rmd"),
+    envir = environment(),
+    quiet = TRUE
+  ))
+}
+cat(out, sep = '\n')
+
+```
+
+## Recommended Citations
+
+If using this analysis pipeline, please cite:
+
+**MSstats** - Choi M, et al. (2014). MSstats: an R package for statistical analysis of quantitative mass spectrometry-based proteomic experiments. Bioinformatics, 30(17), 2524-2526.
+
+**FragPipe** - Kong AT, et al. (2017). MSFragger: ultrafast and comprehensive peptide identification in mass spectrometry-based proteomics. Nature Methods, 14, 513-520.
+
+
+# Session Info
+```{r session-info}
+sessionInfo()
+```
