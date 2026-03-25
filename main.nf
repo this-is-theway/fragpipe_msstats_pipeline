@@ -42,7 +42,6 @@ workflow {
     workflow             : ${params.fragpipe_workflow}
     experimental design  : ${params.experimental_design}
     comparisons          : ${params.comparisons_file}
-    species              : ${params.species}
     outdir               : ${params.outdir}
     threads              : ${params.fragpipe_threads}
     ram (GB)             : ${params.fragpipe_ram}
@@ -135,7 +134,8 @@ workflow {
         rmd_ch,
         scripts_ch,
         comparisons_ch,
-        highlight_ch
+        highlight_ch,
+        fasta_ch
     )
 
     // -------------------------------------------------------------------

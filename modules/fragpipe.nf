@@ -113,8 +113,8 @@ process FRAGPIPE {
     path manifest
 
     output:
-    path "fragpipe_output/",                   emit: results
-    path "fragpipe_output/**/msstats.csv",     emit: msstats_file
+    path "fragpipe_output/**",                   emit: results
+    path "fragpipe_output{,/**}/msstats.csv",     emit: msstats_file
     path "fragpipe_output/*.log",              emit: logs, optional: true
 
     script:

@@ -6,7 +6,7 @@ library(dplyr)
 
 # Read the comparison file
 # Uses `comparisons_file` variable set by run_msstats.Rmd from params
-comparisons_df <- read.csv(comparisons_file, stringsAsFactors = FALSE, sep = ",")
+comparisons_df <- read.csv("../design/comparisons.csv", stringsAsFactors = FALSE, sep = ",")
 
 # Function to create contrast matrix from CSV file
 create_contrast_from_csv <- function(comparisons_df, conditions = NULL, 
@@ -82,96 +82,61 @@ test_results <- groupComparison(contrast.matrix = contrast_mat,
 
 
 
-
 # Function to annotate proteins with gene names and Ensembl IDs using biomaRt
 annotate_protein_results <- function(results_list, 
-                                     protein_col = "Protein",
-                                     species = "human") {
+                                     protein_col = "Protein") {
         
-        # Load required package
-        if (!require("biomaRt")) {
-          stop("Package 'biomaRt' is required. Install with: BiocManager::install('biomaRt')")
-        }
-        
-        message("Fetching annotations from Ensembl via biomaRt...")
-        
-        # Set up Ensembl connection based on species
-        if (species == "human") {
-          ensembl <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
-        } else if (species == "mouse") {
-          ensembl <- useEnsembl(biomart = "genes", dataset = "mmusculus_gene_ensembl")
-        } else if (species == "rat") {
-          ensembl <- useEnsembl(biomart = "genes", dataset = "rnorvegicus_gene_ensembl")
-        } else {
-          stop("Supported species: 'human', 'mouse', or 'rat'")
-        }
-        
-        # Get all unique proteins from all comparisons
-        all_proteins <- unique(unlist(lapply(results_list, function(df) df[[protein_col]])))
-        
-        message("Found ", length(all_proteins), " unique proteins to annotate")
-        
-        # Extract UniProt IDs (remove isoform info if present)
-        uniprot_ids <- gsub("-\\d+$", "", all_proteins)  # Remove -1, -2, etc.
-        uniprot_ids <- gsub(";.*", "", uniprot_ids)      # Take first ID if multiple
-        uniprot_ids <- unique(uniprot_ids)
-        
-        # Fetch annotations from Ensembl
-        protein_annotation <- NULL
-        tryCatch({
-          protein_annotation <- getBM(
-            attributes = c('uniprotswissprot', 'external_gene_name', 'ensembl_gene_id', 'description'),
-            filters = 'uniprotswissprot',
-            values = uniprot_ids,
-            mart = ensembl
-          )
+          # Load required packages
+          if (!require("tidyverse")) {
+            stop("Package 'tidyverse' is required. Install with: install.packages('tidyverse')")
+          }
           
-          # Rename columns
-          colnames(protein_annotation) <- c("Protein_ID", "Gene_name", "Ensembl_ID", "Description")
+          if (!require("Biostrings")) {
+            stop("Package 'Biostrings' is required. Install with: BiocManager::install('Biostrings')")
+          }
+          message("Extracting annotations from FASTA database...")
           
-          # Remove gene description prefix and clean up
-          protein_annotation$Description <- gsub("\\[Source:.*\\]$", "", protein_annotation$Description)
-          protein_annotation$Description <- trimws(protein_annotation$Description)
+          # Read FASTA
+          fasta <- readAAStringSet("/home/jszymanski/Documents/nextflow_pipelines_proteomics/fasta_databases/2026-03-18-decoys-contam-uniprotkb_proteome_UP000005640_AND_revi_2026_03_18.fasta.fas")
           
-        }, error = function(e) {
-          message("Warning: biomaRt query failed. Trying without description...")
-          protein_annotation <<- getBM(
-            attributes = c('uniprotswissprot', 'external_gene_name', 'ensembl_gene_id'),
-            filters = 'uniprotswissprot',
-            values = uniprot_ids,
-            mart = ensembl
-          )
-          colnames(protein_annotation) <<- c("Protein_ID", "Gene_name", "Ensembl_ID")
-        })
-        
-        # Create mapping including original protein IDs (with isoforms)
-        protein_mapping <- data.frame(
-          Protein = all_proteins,
-          Protein_ID_clean = gsub("-\\d+$", "", all_proteins),
-          stringsAsFactors = FALSE
-        )
-        
-        protein_mapping <- merge(protein_mapping, protein_annotation, 
-                                 by.x = "Protein_ID_clean", 
-                                 by.y = "Protein_ID", 
-                                 all.x = TRUE)
-        protein_mapping$Protein_ID_clean <- NULL  # Remove intermediate column
+          # Extract headers
+          headers <- names(fasta)
+          
+          # Parse into annotation table
+          annotation <- tibble(header = headers) %>%
+            mutate(
+              db          = str_extract(header, "^(sp|tr)"),
+              Protein_ID  = str_extract(header, "(?<=\\|)[A-Z0-9]+(?=\\|)"),
+              Protein_entry  = str_extract(header, "(?<=\\|)[A-Z0-9_]+(?= )"),
+              Protein_name = str_extract(header, "(?<= )[^|]+?(?= OS=)"),
+              Organism    = str_extract(header, "(?<=OS=).+?(?= OX=)"),
+              TaxID       = str_extract(header, "(?<=OX=)\\d+"),
+              Gene_name   = str_extract(header, "(?<=GN=)\\S+"),
+              PE_level    = str_extract(header, "(?<=PE=)\\d"),
+              Seq_version = str_extract(header, "(?<=SV=)\\d+"),
+              Length      = width(fasta)
+            ) %>%
+            filter(!str_detect(header, "^rev_|^DECOY_")) %>%
+            distinct(Protein_ID, .keep_all = TRUE)
+  
         
         # Annotate each dataframe in the list
         annotated_list <- lapply(results_list, function(df) {
-          df_annotated <- merge(df, protein_mapping, 
+          
+          # Handle both DDA (sp|A8K2U0|A2ML1_HUMAN) and DIA (A8K2U0) formats
+          if (any(str_detect(df$Protein, "\\|"), na.rm = TRUE)) {
+            df <- df %>%
+            mutate(Protein = str_extract(df$Protein, "(?<=\\|)[A-Z0-9]+(?=\\|)"))
+          } 
+
+          df_annotated <- merge(df, annotation, 
                                 by.x = protein_col, 
-                                by.y = "Protein", 
+                                by.y = "Protein_ID", 
                                 all.x = TRUE, 
                                 sort = FALSE)
           
           # Reorder columns to put annotations right after Protein
-          if ("Description" %in% names(df_annotated)) {
-            annotation_cols <- c("Gene_name", "Ensembl_ID", "Description")
-          } else {
-            annotation_cols <- c("Gene_name", "Ensembl_ID")
-          }
-          
+          annotation_cols <- c("Protein_entry", "Protein_name", "Gene_name", "Organism")
           other_cols <- setdiff(names(df_annotated), c(protein_col, annotation_cols))
           df_annotated <- df_annotated[, c(protein_col, annotation_cols, other_cols)]
           
@@ -183,8 +148,7 @@ annotate_protein_results <- function(results_list,
           return(df_annotated)
         })
         
-        message("Annotation complete via biomaRt")
-        message("Annotated ", nrow(protein_annotation), " out of ", length(all_proteins), " proteins")
+        message("Annotation complete from FASTA")
         
         return(annotated_list)
 }
@@ -261,11 +225,9 @@ export_results_to_excel <- function(results_list, output_file = "comparison_resu
 results_list <- split_comparison_results(test_results)
 
 # Annotate with biomaRt
-# Uses `species` variable set by run_msstats.Rmd from params
 annotated_results <- annotate_protein_results(
   results_list,
-  protein_col = "Protein",
-  species = species
+  protein_col = "Protein"
 )
 
 # Export to Excel
@@ -304,7 +266,7 @@ prepare_comparison_results <- function(comparison_data, comparison_name,
           dplyr::filter(Significance == "Up") %>%
           arrange(adj.pvalue)
         
-        if (length(top_up) > 30) {
+        if (nrow(top_up) > 30) {
           top_up <- head(top_up, 30)
         }
         
@@ -312,7 +274,7 @@ prepare_comparison_results <- function(comparison_data, comparison_name,
           dplyr::filter(Significance == "Down") %>%
           arrange(adj.pvalue)
         
-        if (length(top_down) > 30) {
+        if (nrow(top_down) > 30) {
           top_down <- head(top_down, 30)
         }
         
@@ -390,7 +352,7 @@ prepare_comparison_results <- function(comparison_data, comparison_name,
         
         # Create base volcano plot
         volcano_plot <- ggplot(comparison_data, aes(x = log2FC, y = -log10(adj.pvalue))) +
-          geom_point(aes(color = Significance, size = Highlight, alpha = Highlight)) +
+          geom_point(aes(color = Significance), alpha = 0.6, size = 1.5) +
           scale_color_manual(values = c("Up" = "#d62728", "Down" = "#1f77b4", "NS" = "gray70")) +
           scale_size_manual(values = c(`TRUE` = 3, `FALSE` = 1.5)) +
           scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = 0.6)) +
@@ -457,12 +419,12 @@ prepare_comparison_results <- function(comparison_data, comparison_name,
         # Get up and down regulated proteins
         up_proteins <- comparison_data %>%
           dplyr::filter(Significance == "Up") %>%
-          dplyr::select(Gene_name, Protein, Ensembl_ID, log2FC, adj.pvalue, Description) %>%
+          dplyr::select(Gene_name, Protein, Protein_entry, log2FC, adj.pvalue, Protein_name) %>%
           arrange(adj.pvalue)
         
         down_proteins <- comparison_data %>%
           dplyr::filter(Significance == "Down") %>%
-          dplyr::select(Gene_name, Protein, Ensembl_ID, log2FC, adj.pvalue, Description) %>%
+          dplyr::select(Gene_name, Protein, Protein_entry, log2FC, adj.pvalue, Protein_name) %>%
           arrange(adj.pvalue)
         
         # Return list of results

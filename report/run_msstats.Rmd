@@ -17,13 +17,13 @@ params:
   input_file: "msstats.csv"
   comparisons_file: "comparisons.csv"
   highlight_genes_file: "genes_to_highlight.txt"
+  fasta_file: "proteome.fasta"
   scripts_dir: "scripts"
   imputation_method: "AFT"
   pvalue_cutoff: 0.05
   fc_cutoff: 1.5
-  species: "mouse"
   report_title: "Proteomics Analysis Report"
-  report_author: "Jacek Szymanski"
+  report_author: "Author Name"
 ---
 
 ```{css, echo=FALSE, message=FALSE}
@@ -128,11 +128,11 @@ futile.logger::flog.threshold(futile.logger::FATAL)
 input_file          <- params$input_file
 comparisons_file    <- params$comparisons_file
 highlight_genes_file <- params$highlight_genes_file
+fasta_file          <- params$fasta_file
 scripts_dir         <- params$scripts_dir
-imputation_method <- params$imputation_method
+imputation_method   <- params$imputation_method
 pvalue_cutoff       <- params$pvalue_cutoff
 fc_cutoff           <- params$fc_cutoff
-species             <- params$species
 ```
 
 # Introduction

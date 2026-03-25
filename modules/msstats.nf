@@ -20,6 +20,7 @@ process MSSTATS_REPORT {
     path scripts               // scripts/ directory (R scripts + comparison_template.Rmd)
     path comparisons_file      // comparisons.csv (condition_A, condition_B)
     path highlight_genes_file  // genes_to_highlight.txt (optional, can be empty)
+    path fasta
 
     output:
     path "msstats_report.html",      emit: report
@@ -37,10 +38,10 @@ process MSSTATS_REPORT {
             comparisons_file     = '\$PWD/${comparisons_file}',
             highlight_genes_file = '\$PWD/${highlight_genes_file}',
             scripts_dir          = '\$PWD/${scripts}',
-            imputation_method    = ${params.imputation_method}
+            fasta_file           = '\$PWD/${fasta}',
+            imputation_method    = '${params.imputation_method}',
             pvalue_cutoff        = ${params.fdr_threshold},
             fc_cutoff            = ${params.log2fc_threshold},
-            species              = '${params.species}',
             report_title         = '${params.report_title}',
             report_author        = '${params.report_author}'
         )

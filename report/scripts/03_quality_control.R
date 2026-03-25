@@ -44,8 +44,8 @@ protein_final <- t(apply(protein_filtered, 1, function(x) {
 # Metadata
 metadata <- summarized$ProteinLevelData %>%
   dplyr::select(SUBJECT, GROUP, SUBJECT) %>%
-  distinct() %>%
-  rename(Condition = GROUP, BioReplicate = SUBJECT) %>%
+  dplyr::distinct() %>%
+  dplyr::rename(Condition = GROUP, BioReplicate = SUBJECT) %>%
   as.data.frame()
 
 rownames(metadata) <- metadata$BioReplicate
