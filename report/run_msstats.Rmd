@@ -21,7 +21,7 @@ params:
   scripts_dir: "scripts"
   imputation_method: "AFT"
   pvalue_cutoff: 0.05
-  fc_cutoff: 1.5
+  fc_cutoff: 2
   report_title: "Proteomics Analysis Report"
   report_author: "Author Name"
 ---
@@ -133,6 +133,7 @@ scripts_dir         <- params$scripts_dir
 imputation_method   <- params$imputation_method
 pvalue_cutoff       <- params$pvalue_cutoff
 fc_cutoff           <- params$fc_cutoff
+
 ```
 
 # Introduction
@@ -212,7 +213,7 @@ print(pca_plot)
 
 ---
 
-# Differential Expression
+# Differential Expression: One-to-One comparisons
 
 Differential expression analysis was performed to identify proteins with statistically significant abundance changes. 
 
@@ -226,18 +227,25 @@ Differential expression analysis was performed to identify proteins with statist
 
 
 ```{r differential, echo=FALSE, results='hide'}
-source(file.path(scripts_dir, "04_differential.R"))
+
+if (imputation_method == "AFT") {
+    source(file.path(scripts_dir, "04_differential.R"))
+}    
+ 
 
 # Get all comparison names
-comparison_names <- names(annotated_results)
-
+comparisons_df <- read.csv(comparisons_file, stringsAsFactors = FALSE, sep = ",")
+comparison_names <- paste0(comparisons_df[[1]], "_vs_", comparisons_df[[2]])
+    
 if (file.exists(highlight_genes_file)) {
-  highlight_genes <- readLines(highlight_genes_file, warn = FALSE)
-  highlight_genes <- trimws(highlight_genes)
-  highlight_genes <- highlight_genes[highlight_genes != ""]
+      highlight_genes <- readLines(highlight_genes_file, warn = FALSE)
+      highlight_genes <- trimws(highlight_genes)
+      highlight_genes <- highlight_genes[highlight_genes != ""]
 } else {
-  highlight_genes <- c()
+      highlight_genes <- c()
 }
+
+
 
 # Store the working directory for child documents
 main_wd <- getwd()
@@ -252,7 +260,7 @@ knitr::opts_knit$set(output.dir = main_wd)
 out <- NULL
 for (comparison_name in comparison_names) {
   out <- c(out, knitr::knit_child(
-    file.path(scripts_dir, "comparison_template.Rmd"),
+    file.path(scripts_dir, ifelse(imputation_method == "AFT","comparison_template.Rmd", "comparison_template_ludovic.Rmd")),
     envir = environment(),
     quiet = TRUE
   ))

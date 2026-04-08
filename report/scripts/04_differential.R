@@ -4,9 +4,10 @@ library(ggrepel)
 library(dplyr)
 
 
+
 # Read the comparison file
 # Uses `comparisons_file` variable set by run_msstats.Rmd from params
-comparisons_df <- read.csv("../design/comparisons.csv", stringsAsFactors = FALSE, sep = ",")
+comparisons_df <- read.csv(comparisons_file, stringsAsFactors = FALSE, sep = ",")
 
 # Function to create contrast matrix from CSV file
 create_contrast_from_csv <- function(comparisons_df, conditions = NULL, 
@@ -242,7 +243,7 @@ export_results_to_excel(
 
 # Function to prepare comparison data and plots
 prepare_comparison_results <- function(comparison_data, comparison_name, 
-                                       pvalue_cutoff = 0.05, fc_cutoff = 1.5,
+                                       pvalue_cutoff = 0.05, fc_cutoff = 2,
                                        highlight_genes = c()) {
         
                 # Add significance categories

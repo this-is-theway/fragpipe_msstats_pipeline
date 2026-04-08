@@ -10,7 +10,7 @@ summarized = dataProcess(
   summaryMethod = "TMP",
   equalFeatureVar = TRUE,
   censoredInt = "NA",
-  imputation_method = imputation_method,
+  imputation_method = "AFT",
   MBimpute = TRUE,
   numberOfCores = 4
 )

@@ -130,16 +130,25 @@ process FRAGPIPE {
         print
     }' ${manifest} > updated_manifest.fp-manifest
 
-     # ---- inject FASTA path into workflow (FragPipe GUI adds this separately) ----
+    # ---- inject FASTA path into workflow (FragPipe GUI adds this separately) ----
     FASTA_PATH="\$PWD/${fasta}"
 
-    # Insert database.db-path at the top (the workflow file doesn't contain it)
-    echo "database.db-path=\${FASTA_PATH}" > updated.workflow
-    
-    # Add to your updated.workflow generation
+    # Copy the original workflow as the base
+    cp ${workflow} updated.workflow
+
+    # Append overrides — these take precedence (last occurrence wins)
+    echo "" >> updated.workflow
+    echo "# ---- Nextflow pipeline overrides ----" >> updated.workflow
+    echo "database.db-path=\${FASTA_PATH}" >> updated.workflow
     echo "fragpipe-config.bin-thermorawfileparser=${params.thermorawfileparser}" >> updated.workflow
     echo "fragpipe-config.bin-python=${params.python_bin}" >> updated.workflow
-    cat ${workflow} >> updated.workflow
+
+    # If any input file is .d (Bruker timsTOF), enable IM-MS and in silico library prediction
+    if ls *.d 1> /dev/null 2>&1; then
+        echo "diann.predict-spectral-library=true" >> updated.workflow
+        echo "workflow.input.data-type.im-ms=true" >> updated.workflow
+        echo "workflow.input.data-type.regular-ms=false" >> updated.workflow
+    fi
 
     # Verify
     echo "=== FASTA path in workflow ==="
