@@ -78,19 +78,6 @@ workflow {
     // Create input channels
     // -------------------------------------------------------------------
 
-    
-    // input files are collected and converted to mzML if .raw format
-    input_ch = Channel.fromPath(params.input, type:'any')
-    RAW_TO_MZML(input_ch)
-
-    // MS files — collected into a single list so they are all staged together
-    ms_files_ch = RAW_TO_MZML.out.mzml
-        .mix(input_ch.filter { !it.name.endsWith('.raw') })
-        .collect()
-
-    fasta_ch    = channel.fromPath(params.fasta, checkIfExists: true)
-    workflow_ch = channel.fromPath(params.fragpipe_workflow, checkIfExists: true)
-
     // Experimental design, Rmd template, and R scripts as separate channels
     design_ch       = channel.fromPath(params.experimental_design, checkIfExists: true)
     rmd_ch          = channel.fromPath(params.rmd_template, checkIfExists: true)
@@ -105,32 +92,56 @@ workflow {
             f.text = ""
             return f
         }
-
-    // -------------------------------------------------------------------
-    // STEP 0 (conditional): Generate manifest if not supplied
-    // -------------------------------------------------------------------
-    if (params.fragpipe_manifest) {
-        manifest_ch = channel.fromPath(params.fragpipe_manifest, checkIfExists: true)
-    } else {
-        GENERATE_MANIFEST(ms_files_ch, design_ch)
-        manifest_ch = GENERATE_MANIFEST.out.manifest
+    fasta_ch    = channel.fromPath(params.fasta, checkIfExists: true)
+    
+    if (params.msstats_csv) {
+        // ---- MSstats-only: reuse a pre-computed FragPipe result ----
+        log.info "MSstats-only mode: using ${params.msstats_csv} (skipping FragPipe)"
+        msstats_ch = Channel.fromPath(params.msstats_csv, checkIfExists: true)
     }
+    else {
+                    
+                // input files are collected and converted to mzML if .raw format
+                input_ch = Channel.fromPath(params.input, type:'any')
+                RAW_TO_MZML(input_ch)
 
-    // -------------------------------------------------------------------
-    // STEP 1: Run FragPipe
-    // -------------------------------------------------------------------
-    FRAGPIPE(
-        ms_files_ch,
-        fasta_ch,
-        workflow_ch,
-        manifest_ch
-    )
+                // MS files — collected into a single list so they are all staged together
+                ms_files_ch = RAW_TO_MZML.out.mzml
+                    .mix(input_ch.filter { !it.name.endsWith('.raw') })
+                    .collect()
+
+                workflow_ch = channel.fromPath(params.fragpipe_workflow, checkIfExists: true)
+
+            
+
+                // -------------------------------------------------------------------
+                // STEP 0 (conditional): Generate manifest if not supplied
+                // -------------------------------------------------------------------
+                if (params.fragpipe_manifest) {
+                    manifest_ch = channel.fromPath(params.fragpipe_manifest, checkIfExists: true)
+                } else {
+                    GENERATE_MANIFEST(ms_files_ch, design_ch)
+                    manifest_ch = GENERATE_MANIFEST.out.manifest
+                }
+
+                // -------------------------------------------------------------------
+                // STEP 1: Run FragPipe
+                // -------------------------------------------------------------------
+                FRAGPIPE(
+                    ms_files_ch,
+                    fasta_ch,
+                    workflow_ch,
+                    manifest_ch
+                )
+
+                msstats_ch = FRAGPIPE.out.msstats_file
+    }
 
     // -------------------------------------------------------------------
     // STEP 2: MSstats analysis & HTML report
     // -------------------------------------------------------------------
     MSSTATS_REPORT(
-        FRAGPIPE.out.msstats_file,
+        msstats_ch,
         rmd_ch,
         scripts_ch,
         comparisons_ch,
