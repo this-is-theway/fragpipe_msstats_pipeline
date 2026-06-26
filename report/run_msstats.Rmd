@@ -230,6 +230,12 @@ Differential expression analysis was performed to identify proteins with statist
 
 if (imputation_method == "AFT") {
     source(file.path(scripts_dir, "04_differential.R"))
+} else if (imputation_method == "ludovic") {
+    # Source helpers ONCE: builds annotation_table from FASTA, defines
+    # annotate_single_result(), prepare_comparison_results(),
+    # export_results_to_excel(), export_results_to_csv(),
+    # and initializes the empty list `all_annotated_results`.
+    source(file.path(scripts_dir, "05_helpers_ludovic.R"))
 }    
  
 
@@ -256,17 +262,36 @@ main_wd <- getwd()
 # FIX: Ensure output.dir is set before knit_child to prevent setwd() errors
 knitr::opts_knit$set(output.dir = main_wd)
 
-# Render analysis for each comparison using child template
+# Render analysis for each comparison using child template.
+# For the ludovic path, each child appends its annotated result to
+# `all_annotated_results` (built in 05_helpers_ludovic.R).
 out <- NULL
 for (comparison_name in comparison_names) {
   out <- c(out, knitr::knit_child(
-    file.path(scripts_dir, ifelse(imputation_method == "AFT","comparison_template.Rmd", "comparison_template_ludovic.Rmd")),
+    file.path(scripts_dir, ifelse(imputation_method == "AFT",
+                                  "comparison_template.Rmd",
+                                  "comparison_template_ludovic.Rmd")),
     envir = environment(),
     quiet = TRUE
   ))
 }
 cat(out, sep = '\n')
 
+```
+
+## Results Files
+
+```{r echo=FALSE, results='asis'}
+if (imputation_method == "ludovic" &&
+    exists("all_annotated_results") &&
+    length(all_annotated_results) > 0) {
+  cat("All comparison results have been exported:\n\n")
+  cat("- **`comparison_results.xlsx`** - one sheet per comparison\n")
+  cat("- **`results/<comparison>.csv`** - one CSV per comparison\n\n")
+  cat("Comparisons exported: ",
+      paste0("`", names(all_annotated_results), "`", collapse = ", "),
+      "\n")
+}
 ```
 
 ## Recommended Citations

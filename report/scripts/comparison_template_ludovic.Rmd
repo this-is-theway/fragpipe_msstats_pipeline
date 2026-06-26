@@ -1,7 +1,7 @@
 ## Comparison: `r comparison_name`
 
 
-```{r}
+```{r echo=FALSE, results='hide'}
 conditions <- strsplit(comparison_name, "_vs_")[[1]]
 msstats_df <- read.csv(input_file) %>% dplyr::filter(Condition %in% conditions)
 
@@ -31,7 +31,7 @@ summarized = dataProcess(
 )
 ```
 
-### Quality control
+### PCA analysis
 
 ```{r}
 # From MSstats processed data
@@ -91,23 +91,47 @@ pca_result <- pca(
   removeVar = 0.1
 )
 
-pca_plot <- biplot(pca_result, colby = "Condition", legendPosition = "right", title = "PCA - Protein Level")
+pca_plot <- biplot(pca_result, colby = "Condition", legendPosition = "right",
+                   title = "PCA - Protein Level")
+pca_plot
 ```
 
 ```{r include=FALSE, echo=FALSE, results='hide'}
-source(file.path(scripts_dir, "05_differential_ludovic.R"))
+# ----------------------------------------------------------------------------
+# Per-comparison differential testing.
+# Helper functions and the annotation_table were sourced ONCE in the parent
+# document via 05_helpers_ludovic.R, so we don't redefine anything here.
+# ----------------------------------------------------------------------------
 
-# FIX: Ensure we're in the correct working directory
+# Build single-row contrast matrix: condition_A = +1, condition_B = -1
+contrast_mat <- matrix(0, nrow = 1, ncol = length(conditions))
+colnames(contrast_mat) <- conditions
+rownames(contrast_mat) <- comparison_name
+contrast_mat[1, conditions[1]] <-  1
+contrast_mat[1, conditions[2]] <- -1
+
+test_results <- groupComparison(contrast.matrix = contrast_mat,
+                                data = summarized)
+
+# Annotate this single comparison using the pre-built annotation_table
+annotated_df <- annotate_single_result(test_results$ComparisonResult,
+                                       protein_col = "Protein")
+
+# Exoprt to excel file
+library(openxlsx)
+write.xlsx(annotated_df, paste("comparison_results_", comparison_name, ".xlsx"))
+
+# Ensure we're in the correct working directory (kept from original template)
 if (exists("main_wd") && !is.null(main_wd)) {
   setwd(main_wd)
 }
 
-# Prepare comparison data and plots
+# Prepare per-comparison plots and summary stats
 comp_results <- prepare_comparison_results(
-  comparison_data = annotated_results[[comparison_name]],
+  comparison_data = annotated_df,
   comparison_name = comparison_name,
-  pvalue_cutoff = pvalue_cutoff,
-  fc_cutoff = fc_cutoff,
+  pvalue_cutoff   = pvalue_cutoff,
+  fc_cutoff       = fc_cutoff,
   highlight_genes = highlight_genes
 )
 ```

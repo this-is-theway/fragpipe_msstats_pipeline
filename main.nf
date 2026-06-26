@@ -80,7 +80,7 @@ workflow {
 
     
     // input files are collected and converted to mzML if .raw format
-    input_ch = Channel.fromPath(params.input)
+    input_ch = Channel.fromPath(params.input, type:'any')
     RAW_TO_MZML(input_ch)
 
     // MS files — collected into a single list so they are all staged together

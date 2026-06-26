@@ -34,7 +34,7 @@ annotate_protein_results <- function(results_list,
   message("Extracting annotations from FASTA database...")
   
   # Read FASTA
-  fasta <- readAAStringSet("/home/jszymanski/Documents/nextflow_pipelines_proteomics/fasta_databases/2026-03-18-decoys-contam-uniprotkb_proteome_UP000005640_AND_revi_2026_03_18.fasta.fas")
+  fasta <- readAAStringSet(fasta_file)
   
   # Extract headers
   headers <- names(fasta)
