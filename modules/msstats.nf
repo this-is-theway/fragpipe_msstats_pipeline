@@ -18,6 +18,7 @@ process MSSTATS_REPORT {
     path msstats_file          // msstats.csv from FragPipe
     path rmd_template          // run_msstats.Rmd
     path scripts               // scripts/ directory (R scripts + comparison_template.Rmd)
+    path logo_path
     path comparisons_file      // comparisons.csv (condition_A, condition_B)
     path highlight_genes_file  // genes_to_highlight.txt (optional, can be empty)
     path fasta
@@ -38,6 +39,7 @@ process MSSTATS_REPORT {
             comparisons_file     = '\$PWD/${comparisons_file}',
             highlight_genes_file = '\$PWD/${highlight_genes_file}',
             scripts_dir          = '\$PWD/${scripts}',
+            logo_path            = '\$PWD/${logo_path}',
             fasta_file           = '\$PWD/${fasta}',
             imputation_method    = '${params.imputation_method}',
             pvalue_cutoff        = ${params.fdr_threshold},

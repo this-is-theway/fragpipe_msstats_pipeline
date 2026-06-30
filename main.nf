@@ -82,6 +82,7 @@ workflow {
     design_ch       = channel.fromPath(params.experimental_design, checkIfExists: true)
     rmd_ch          = channel.fromPath(params.rmd_template, checkIfExists: true)
     scripts_ch      = channel.fromPath(params.scripts, checkIfExists: true)
+    logo_ch          = channel.fromPath(params.logo_path, checkIfExists: true)
     comparisons_ch  = channel.fromPath(params.comparisons_file, checkIfExists: true)
 
     // Highlight genes file (optional — create empty file if not provided)
@@ -144,6 +145,7 @@ workflow {
         msstats_ch,
         rmd_ch,
         scripts_ch,
+        logo_ch,
         comparisons_ch,
         highlight_ch,
         fasta_ch

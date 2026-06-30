@@ -2,7 +2,7 @@
 title: "`r params$report_title`"
 author: 
   - name: "`r params$report_author`"
-    avatar: ./img/logo.png
+    avatar: "`r params$logo_path`"
     title: Bioinformatics Facility
 date: "`r Sys.Date()`"
 output: 
@@ -26,7 +26,7 @@ params:
   report_author: "Author Name"
 ---
 
-```{css, echo=FALSE, message=FALSE}
+```{css  echo=FALSE, message=FALSE}
 .columns {display: flex;}
 h1 {color: #1d2355;}
 h2 {color: #1d2355;}
@@ -71,22 +71,28 @@ item.active, .list-group-item.active:hover {
     background:#1d2355;
     border-top:solid 10px #1d2355;
 }
+.avatar {
+  width: 300px;
+  height: auto;
+  background-color: #1d2355;
+}
+
 
 .nav-pills > li.active > a, 
 .nav-pills > li.active > a:focus, 
 .nav-pills > li.active > a:hover {
-    background-color: #2a337b !important;
+    background-color: #2a337b !important;  /* Active tab color */
     border-color: #191970 !important;
 }
 
 .nav-pills > li > a {
-    background-color: #191970 !important;
-    color: #dee2e6 !important;
+    background-color: #191970 !important;  /* Inactive tab color */
+    color: #dee2e6 !important;             /* Inactive text color */
     border: 1px solid #dee2e6 !important;
 }
 
 .nav-pills > li > a:hover {
-    background-color: #2a337b !important;
+    background-color: #2a337b !important;  /* Hover color */
     color: #F5EEFF !important;
 }
 
