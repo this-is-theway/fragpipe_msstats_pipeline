@@ -39,6 +39,7 @@ process MSSTATS_REPORT {
             comparisons_file     = '\$PWD/${comparisons_file}',
             highlight_genes_file = '\$PWD/${highlight_genes_file}',
             scripts_dir          = '\$PWD/${scripts}',
+            log_dir              = '\$PWD',
             logo_path            = '\$PWD/${logo_path}',
             fasta_file           = '\$PWD/${fasta}',
             imputation_method    = '${params.imputation_method}',

@@ -12,7 +12,10 @@ summarized = dataProcess(
   censoredInt = "NA",
   imputation_method = "AFT",
   MBimpute = TRUE,
-  numberOfCores = 4
+  numberOfCores = 4,
+  use_log_file = TRUE,
+  append = FALSE,
+  log_file_path = file.path(log_dir, "MSstats_preprocessing.log")
 )
 
 # Export preprocessed results at both peptide and protein levels

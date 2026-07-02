@@ -19,11 +19,13 @@ params:
   highlight_genes_file: "genes_to_highlight.txt"
   fasta_file: "proteome.fasta"
   scripts_dir: "scripts"
+  log_dir: "."
   imputation_method: "AFT"
   pvalue_cutoff: 0.05
   fc_cutoff: 2
   report_title: "Proteomics Analysis Report"
   report_author: "Author Name"
+  logo_path: "logo.png"
 ---
 
 ```{css  echo=FALSE, message=FALSE}
@@ -136,6 +138,7 @@ comparisons_file    <- params$comparisons_file
 highlight_genes_file <- params$highlight_genes_file
 fasta_file          <- params$fasta_file
 scripts_dir         <- params$scripts_dir
+log_dir             <- params$log_dir
 imputation_method   <- params$imputation_method
 pvalue_cutoff       <- params$pvalue_cutoff
 fc_cutoff           <- params$fc_cutoff
