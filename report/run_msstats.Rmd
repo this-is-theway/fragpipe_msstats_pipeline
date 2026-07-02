@@ -231,11 +231,7 @@ Differential expression analysis was performed to identify proteins with statist
 if (imputation_method == "AFT") {
     source(file.path(scripts_dir, "04_differential.R"))
 } else if (imputation_method == "ludovic") {
-    # Source helpers ONCE: builds annotation_table from FASTA, defines
-    # annotate_single_result(), prepare_comparison_results(),
-    # export_results_to_excel(), export_results_to_csv(),
-    # and initializes the empty list `all_annotated_results`.
-    source(file.path(scripts_dir, "05_helpers_ludovic.R"))
+    source(file.path(scripts_dir, "05_differential_ludovic.R"))
 }    
  
 
