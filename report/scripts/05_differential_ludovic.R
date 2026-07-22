@@ -1,7 +1,8 @@
 library(openxlsx)
 library(ggplot2)
-library(ggrepel)
 library(dplyr)
+library(plotly)
+library(crosstalk)
 
 # contrast matrix for the single comparison
 contrast_mat <- matrix(c(-1, 1), nrow = 1)
@@ -114,50 +115,6 @@ split_comparison_results <- function(test_results) {
 }
 
 
-# Function to export results list to Excel
-export_results_to_excel <- function(results_list, output_file = "comparison_results.xlsx") {
-  
-  # Load required package
-  if (!require("openxlsx")) {
-    stop("Package 'openxlsx' is required. Install with: install.packages('openxlsx')")
-  }
-  
-  # Create workbook
-  wb <- createWorkbook()
-  
-  # Add separate sheet for each comparison
-  for (label in names(results_list)) {
-    # Clean sheet name (Excel has restrictions)
-    sheet_name <- gsub("[:\\\\/*?\\[\\]]", "_", label)
-    sheet_name <- substr(sheet_name, 1, 31)  # Excel sheet name limit
-    
-    addWorksheet(wb, sheet_name)
-    writeData(wb, sheet_name, results_list[[label]])
-    
-    # Format header
-    headerStyle <- createStyle(fontSize = 11, fontColour = "#FFFFFF", 
-                               halign = "center", fgFill = "#4F81BD",
-                               border = "TopBottom", borderColour = "#4F81BD",
-                               textDecoration = "bold")
-    addStyle(wb, sheet_name, headerStyle, rows = 1, 
-             cols = 1:ncol(results_list[[label]]), gridExpand = TRUE)
-    
-    # Auto-size columns
-    setColWidths(wb, sheet_name, cols = 1:ncol(results_list[[label]]), widths = "auto")
-    
-    # Freeze top row
-    freezePane(wb, sheet_name, firstRow = TRUE)
-  }
-  
-  # Save workbook
-  saveWorkbook(wb, output_file, overwrite = TRUE)
-  
-  message("Results exported to: ", output_file)
-  message("Number of sheets: ", length(results_list))
-  
-  return(invisible(output_file))
-}
-
 # Split results into list
 results_list <- split_comparison_results(test_results)
 
@@ -167,11 +124,10 @@ annotated_results <- annotate_protein_results(
   protein_col = "Protein"
 )
 
-# Export to Excel
-export_results_to_excel(
-  annotated_results,
-  output_file = "comparison_results.xlsx"
-)
+
+# Export to excel file
+library(openxlsx)
+write.xlsx(annotated_results, paste("comparison_results_", comparison_name, ".xlsx"))
 
 
 
@@ -191,17 +147,14 @@ prepare_comparison_results <- function(comparison_data, comparison_name,
 
   # Volcano y-axis: -log10(adj.pvalue), cap Inf produced by p==0
   comparison_data$neg_log_pvalue <- -log10(comparison_data$adj.pvalue)
-  #finite_nlp <- comparison_data$neg_log_pvalue[is.finite(comparison_data$neg_log_pvalue)]
-  #cap_nlp <- if (length(finite_nlp) > 0) max(finite_nlp) + 1 else 50
-  #comparison_data$neg_log_pvalue[!is.finite(comparison_data$neg_log_pvalue)] <- cap_nlp
 
-  # MA x-axis: log10(mean expression proxy from SE)
-  comparison_data$baseMean <- 2^rowMeans(cbind(
-    comparison_data$log2FC + log2(comparison_data$SE),
-    log2(comparison_data$SE)
-  ), na.rm = TRUE)
-  comparison_data$log10_baseMean <- log10(comparison_data$baseMean)
-  comparison_data$log10_baseMean[!is.finite(comparison_data$log10_baseMean)] <- NA
+  # MA x-axis: meanLog2Intensity
+  protein_means_df <- summarized$ProteinLevelData %>%
+              dplyr::select(Protein, LogIntensities) %>%
+              dplyr::group_by(Protein) %>%
+              dplyr::summarise(meanLog2Intensity = mean(LogIntensities, na.rm = TRUE))
+  comparison_data <- comparison_data %>% dplyr::inner_join(protein_means_df, by = "Protein")
+
 
   # Hover tooltip (fall back to Protein ID when Gene_name is absent)
   gene_label <- ifelse(
@@ -219,7 +172,7 @@ prepare_comparison_results <- function(comparison_data, comparison_name,
   # Build the SharedData dataframe: visible display cols first, then plot-only cols
   display_cols <- c("Gene_name", "Protein", "Protein_entry", "Protein_name",
                     "log2FC", "SE", "pvalue", "adj.pvalue", "Significance")
-  plot_cols    <- c("neg_log_pvalue", "log10_baseMean", "hover_text")
+  plot_cols    <- c("neg_log_pvalue", "meanLog2Intensity", "hover_text")
   keep_cols    <- c(intersect(display_cols, names(comparison_data)), plot_cols)
   sd_data      <- comparison_data[, keep_cols, drop = FALSE]
 
@@ -246,7 +199,7 @@ prepare_comparison_results <- function(comparison_data, comparison_name,
           "<b>Volcano Plot: ", comparison_name, "</b><br>",
           "<span style='font-size:11px;color:gray40'>",
           "Cutoffs: adj.p-value < ", pvalue_cutoff,
-          ", |FC| > ", fc_cutoff, "</span>"
+          ", |log2FC| > ", log2(fc_cutoff), "</span>"
         ),
         x = 0.5, xanchor = "center",
         font = list(size = 14)
@@ -286,7 +239,7 @@ prepare_comparison_results <- function(comparison_data, comparison_name,
 
 
     ma_plot <- plot_ly(sd,
-      x = ~log10_baseMean, y = ~log2FC,
+      x = ~meanLog2Intensity, y = ~log2FC,
       type = "scatter", mode = "markers",
       color = ~Significance, colors = sig_colors,
       text = ~hover_text, hoverinfo = "text",
@@ -298,14 +251,14 @@ prepare_comparison_results <- function(comparison_data, comparison_name,
         text = paste0(
           "<b>MA Plot: ", comparison_name, "</b><br>",
           "<span style='font-size:11px;color:gray40'>",
-          "Mean expression vs. fold change (FC cutoff: ", fc_cutoff, ")",
+          "Mean expression vs. fold change (log2FC cutoff: ", log2(fc_cutoff), ")",
           "</span>"
         ),
         x = 0.5, xanchor = "center",
         font = list(size = 14)
       ),
       xaxis = list(
-        title = "log10(Mean Expression)",
+        title = "log2(Mean Expression)",
         zeroline = FALSE,
         showgrid = TRUE, gridcolor = "rgb(235,235,235)",
         showline = TRUE, linecolor = "black", mirror = TRUE
@@ -344,6 +297,7 @@ prepare_comparison_results <- function(comparison_data, comparison_name,
   n_sig   <- n_up + n_down
 
   list(
+    data          = comparison_data,
     volcano_plot  = volcano_plot,
     ma_plot       = ma_plot,
     shared_data   = sd,

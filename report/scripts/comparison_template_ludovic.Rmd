@@ -97,6 +97,7 @@ pca_plot
 ```
 
 ```{r include=FALSE, echo=FALSE, results='hide'}
+source(file.path(scripts_dir, "05_differential_ludovic.R"))
 
 # Ensure we're in the correct working directory (kept from original template)
 if (exists("main_wd") && !is.null(main_wd)) {
@@ -105,13 +106,46 @@ if (exists("main_wd") && !is.null(main_wd)) {
 
 # Prepare per-comparison plots and summary stats
 comp_results <- prepare_comparison_results(
-  comparison_data = annotated_df,
+  comparison_data = annotated_results[[comparison_name]],
   comparison_name = comparison_name,
   pvalue_cutoff   = pvalue_cutoff,
   fc_cutoff       = fc_cutoff,
   highlight_genes = highlight_genes
 )
 ```
+
+### Summary Statistics
+
+| Metric | Count |
+|--------|-------|
+| Total Proteins | `r comp_results$n_total` |
+| Significantly Regulated | `r comp_results$n_sig` (`r round(comp_results$n_sig/comp_results$n_total*100, 1)`%) |
+| Upregulated (in `r conditions[1]`) | `r comp_results$n_up` |
+| Downregulated (in `r conditions[1]`) | `r comp_results$n_down` |
+
+**Key findings:**
+
+- **`r comp_results$n_up`** proteins significantly **upregulated** (adj.p < `r comp_results$pvalue_cutoff`, FC > `r comp_results$fc_cutoff`)
+- **`r comp_results$n_down`** proteins significantly **downregulated** (adj.p < `r comp_results$pvalue_cutoff`, FC < `r round(1/comp_results$fc_cutoff, 2)`)
+
+
+### Volcano Plot
+
+The volcano plot shows the relationship between statistical significance and fold change for each protein.
+```{r echo=FALSE, out.width="75%", fig.align='center', fig.height=6}
+comp_results$volcano_plot
+```
+
+**Interpretation**: Points represent individual proteins. Red = upregulated (in `r conditions[1]`), Blue = downregulated (in `r conditions[1]`), Gray = not significant. Dashed lines indicate significance cutoffs (vertical: fold change, horizontal: adjusted p-value).
+
+### MA Plot
+
+The MA plot displays the relationship between mean expression level and fold change, helping identify expression-dependent biases.
+```{r echo=FALSE, out.width="75%", fig.align='center', fig.height=6}
+comp_results$ma_plot
+```
+
+**Interpretation**: The x-axis shows average expression level, while the y-axis shows fold change. This plot helps identify whether differential expression is biased toward highly or lowly expressed proteins. Points should be distributed symmetrically around y=0 for unbiased results.
 
 ### Results Table
 
@@ -150,38 +184,11 @@ DT::datatable(
   )
 ```
 
-### Volcano Plot
 
-The volcano plot shows the relationship between statistical significance and fold change for each protein.
 ```{r echo=FALSE, out.width="75%", fig.align='center', fig.height=6}
-comp_results$volcano_plot
+# Export to excel file
+library(openxlsx)
+write.xlsx(comp_results$data, paste("comparison_results_", comparison_name, ".xlsx"))
 ```
-
-**Interpretation**: Points represent individual proteins. Red = upregulated, Blue = downregulated, Gray = not significant. Dashed lines indicate significance cutoffs (vertical: fold change, horizontal: adjusted p-value).
-
-### MA Plot
-
-The MA plot displays the relationship between mean expression level and fold change, helping identify expression-dependent biases.
-```{r echo=FALSE, out.width="75%", fig.align='center', fig.height=6}
-comp_results$ma_plot
-```
-
-**Interpretation**: The x-axis shows average expression level, while the y-axis shows fold change. This plot helps identify whether differential expression is biased toward highly or lowly expressed proteins. Points should be distributed symmetrically around y=0 for unbiased results.
-
-### Summary Statistics
-
-| Metric | Count |
-|--------|-------|
-| Total Proteins | `r comp_results$n_total` |
-| Significantly Regulated | `r comp_results$n_sig` (`r round(comp_results$n_sig/comp_results$n_total*100, 1)`%) |
-| Upregulated | `r comp_results$n_up` |
-| Downregulated | `r comp_results$n_down` |
-
-**Key findings:**
-
-- **`r comp_results$n_up`** proteins significantly **upregulated** (adj.p < `r comp_results$pvalue_cutoff`, FC > `r comp_results$fc_cutoff`)
-- **`r comp_results$n_down`** proteins significantly **downregulated** (adj.p < `r comp_results$pvalue_cutoff`, FC < `r round(1/comp_results$fc_cutoff, 2)`)
-
-
 
 ---

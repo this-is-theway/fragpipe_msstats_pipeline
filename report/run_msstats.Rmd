@@ -10,6 +10,7 @@ output:
     highlight: kate
     toc_depth: 2
     number_sections: true
+    self_contained: false 
     toc_float:
       collapsed: yes
       smooth_scroll: no
@@ -230,8 +231,6 @@ Differential expression analysis was performed to identify proteins with statist
 
 if (imputation_method == "AFT") {
     source(file.path(scripts_dir, "04_differential.R"))
-} else if (imputation_method == "ludovic") {
-    source(file.path(scripts_dir, "05_differential_ludovic.R"))
 }    
  
 
