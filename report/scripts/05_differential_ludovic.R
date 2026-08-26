@@ -23,11 +23,18 @@ test_results <- groupComparison(contrast.matrix = contrast_mat,
 
 
 # Function to annotate proteins with gene names and Ensembl IDs using biomaRt
-annotate_protein_results <- function(results_list, 
-                                     protein_col = "Protein",
-                                     fasta_source = c("uniprot", "ncbi")) {
+annotate_protein_results <- function(results_list,
+                                     protein_col = "Protein") {
+
+  # Load required packages
+  if (!require("tidyverse")) {
+    stop("Package 'tidyverse' is required. Install with: install.packages('tidyverse')")
+  }
   
-  
+  if (!require("Biostrings")) {
+    stop("Package 'Biostrings' is required. Install with: BiocManager::install('Biostrings')")
+  }
+
   message("Extracting annotations from FASTA database...")
   
   # Read FASTA
@@ -36,9 +43,9 @@ annotate_protein_results <- function(results_list,
   # Extract headers
   headers <- names(fasta)
 
-  if (fasta_source == "uniprot") {
+
     
-      # Parse into annotation table
+      # Parse into annotation table # nolint
       annotation <- tibble(header = headers) %>%
         mutate(
           db          = str_extract(header, "^(sp|tr)"),
@@ -84,53 +91,6 @@ annotate_protein_results <- function(results_list,
         return(df_annotated)
       })
 
-  } else if (fasta_source == "ncbi") {
-
-    if (is.null(gff)) {
-      stop("fasta_source = 'ncbi' requires gff = 'path/to/annot.gff' ")
-    }
-
-    annotation <- tibble(header = headers) %>%
-      mutate(
-        db          = str_extract(header, "^[a-zA-Z]+(?=\\|)"),
-        Protein_ID  = str_extract(header, "(?<=\\|)[^ |]+(?= )"),
-        Organism    = str_extract(header, "(?<=\\[)[^\\]]+(?=\\]\\s*$)"),
-        Protein_name = header %>%
-          str_remove("^[a-zA-Z]+\\|\\S+\\s") %>%
-          str_remove("\\s*\\[[^\\]]+\\]\\s*$"),
-        Length      = width(fasta)
-      ) %>%
-      filter(!str_detect(header, "^rev_|^DECOY_")) %>%
-      distinct(Protein_ID, .keep_all = TRUE)
-    
-    # Annotate each dataframe in the list
-    annotated_list <- lapply(results_list, function(df) {
-        
-        # Handle ncbi format
-        if (any(str_detect(df$Protein, "\\|"), na.rm = TRUE)) {
-          df <- df %>%
-            mutate(Protein = str_extract(df$Protein, "(?<=\\|)[^ |]+(?= )"))
-        } 
-        
-        df_annotated <- merge(df, annotation, 
-                              by.x = protein_col, 
-                              by.y = "Protein_ID", 
-                              all.x = TRUE, 
-                              sort = FALSE)
-        
-        # Reorder columns to put annotations right after Protein
-        annotation_cols <- c("Protein_ID", "Protein_name", "Organism")
-        other_cols <- setdiff(names(df_annotated), c(protein_col, annotation_cols))
-        df_annotated <- df_annotated[, c(protein_col, annotation_cols, other_cols)]
-        
-        # Sort by adjusted p-value if available
-        if ("adj.pvalue" %in% names(df_annotated)) {
-          df_annotated <- df_annotated[order(df_annotated$adj.pvalue), ]
-        }
-        
-        return(df_annotated)
-      })
-  }
 
   message("Annotation complete from FASTA")
   
@@ -167,8 +127,7 @@ results_list <- split_comparison_results(test_results)
 # Annotate with biomaRt
 annotated_results <- annotate_protein_results(
   results_list,
-  protein_col = "Protein",
-  fasta_source = fasta_source
+  protein_col = "Protein"
 )
 
 
