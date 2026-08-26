@@ -19,6 +19,7 @@ params:
   comparisons_file: "comparisons.csv"
   highlight_genes_file: "genes_to_highlight.txt"
   fasta_file: "proteome.fasta"
+  fasta_source : "uniprot"
   scripts_dir: "scripts"
   imputation_method: "AFT"
   pvalue_cutoff: 0.05
@@ -27,7 +28,7 @@ params:
   report_author: "Author Name"
 ---
 
-```{css, echo=FALSE, message=FALSE}
+```{css  echo=FALSE, message=FALSE}
 .columns {display: flex;}
 h1 {color: #1d2355;}
 h2 {color: #1d2355;}
@@ -72,22 +73,28 @@ item.active, .list-group-item.active:hover {
     background:#1d2355;
     border-top:solid 10px #1d2355;
 }
+.avatar {
+  width: 300px;
+  height: auto;
+  background-color: #1d2355;
+}
+
 
 .nav-pills > li.active > a, 
 .nav-pills > li.active > a:focus, 
 .nav-pills > li.active > a:hover {
-    background-color: #2a337b !important;
+    background-color: #2a337b !important;  /* Active tab color */
     border-color: #191970 !important;
 }
 
 .nav-pills > li > a {
-    background-color: #191970 !important;
-    color: #dee2e6 !important;
+    background-color: #191970 !important;  /* Inactive tab color */
+    color: #dee2e6 !important;             /* Inactive text color */
     border: 1px solid #dee2e6 !important;
 }
 
 .nav-pills > li > a:hover {
-    background-color: #2a337b !important;
+    background-color: #2a337b !important;  /* Hover color */
     color: #F5EEFF !important;
 }
 
@@ -134,6 +141,7 @@ scripts_dir         <- params$scripts_dir
 imputation_method   <- params$imputation_method
 pvalue_cutoff       <- params$pvalue_cutoff
 fc_cutoff           <- params$fc_cutoff
+fasta_source        <- params$fasta_source
 
 ```
 
@@ -164,10 +172,6 @@ source(file.path(scripts_dir, "01_load_data.R"))
 - **Summarization (TMP)** - Tukey Median Polish for robust protein abundance estimation
 - **Missing Values (`r imputation_method` model)** - Model-based imputation for censored data
 
-```{r preprocessing, echo=FALSE, results='hide'}
-source(file.path(scripts_dir, "02_preprocessing.R"))
-
-```
 
 ---
 
@@ -175,12 +179,61 @@ source(file.path(scripts_dir, "02_preprocessing.R"))
 
 Quality control assessment evaluates data quality and identifies potential issues before differential expression analysis.
 
+## Before normalisation
+
+```{r qc-plots-no-normalisation, echo=FALSE, results='hide'}
+source(file.path(scripts_dir, "02a_preprocessing_no_norm.R"))
+source(file.path(scripts_dir, "03_quality_control.R"))
+
+```
+
+### Intensity Distribution
+
+Box plots display the distribution of log2-transformed peptide intensities for each sample, enabling assessment of overall signal intensity, distribution spread and outlier detection.
+
+
+```{r echo=FALSE, out.width="75%", fig.align='center', fig.height=7}
+print(dist_plot)
+```
+
+**How to Interpret**
+
+- **Good quality** - Similar median levels across samples, consistent box widths
+- **Warning signs** - Shifted medians, compressed or expanded distributions, many outliers
+- **Poor quality** - Dramatically different distributions between replicates of the same condition
+
+
+### Principal Component Analysis (PCA)
+
+Principal Component Analysis reduces high-dimensional proteomics data to visualize sample relationships. PC1 and PC2 are the first two principal components capturing maximum variance. Biological replicates should cluster together, while unexpected clustering may indicate batch effects.
+
+```{r echo=FALSE, out.width="75%", fig.align='center', fig.height=6}
+print(pca_plot)
+
+```
+
+**How to Interpret**
+
+- **Expected pattern** - Clear separation between experimental conditions along PC1 or PC2
+- **Good reproducibility** - Tight clustering of biological replicates
+- **Batch effect** - Samples cluster by processing batch rather than biological condition
+- **Outlier** - Single sample far from its expected group (consider removal)
+
+---
+
+## After normalisation
+
+```{r preprocessing, echo=FALSE, results='hide'}
+source(file.path(scripts_dir, "02_preprocessing.R"))
+
+```
+
 ```{r qc-plots, echo=FALSE, out.width="75%", fig.align='center', fig.height=7}
 source(file.path(scripts_dir, "03_quality_control.R"))
 
 ```
 
-## Intensity Distribution
+### Intensity Distribution
 
 Box plots display the distribution of log2-transformed peptide intensities for each sample, enabling assessment of overall signal intensity, distribution spread, normalization effectiveness, and outlier detection.
 
@@ -196,7 +249,7 @@ print(dist_plot)
 - **Poor quality** - Dramatically different distributions between replicates of the same condition
 
 
-## Principal Component Analysis (PCA)
+### Principal Component Analysis (PCA)
 
 Principal Component Analysis reduces high-dimensional proteomics data to visualize sample relationships. PC1 and PC2 are the first two principal components capturing maximum variance. Biological replicates should cluster together, while unexpected clustering may indicate batch effects.
 
@@ -204,13 +257,6 @@ Principal Component Analysis reduces high-dimensional proteomics data to visuali
 print(pca_plot)
 
 ```
-
-**How to Interpret**
-
-- **Expected pattern** - Clear separation between experimental conditions along PC1 or PC2
-- **Good reproducibility** - Tight clustering of biological replicates
-- **Batch effect** - Samples cluster by processing batch rather than biological condition
-- **Outlier** - Single sample far from its expected group (consider removal)
 
 ---
 

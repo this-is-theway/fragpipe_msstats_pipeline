@@ -31,7 +31,7 @@ summarized = dataProcess(
 )
 ```
 
-### PCA analysis
+### PCA analysis (post-imputation)
 
 ```{r}
 # From MSstats processed data
