@@ -1,6 +1,6 @@
 
 # Load data
-# Uses `input_file` variable set by run_msstats.Rmd from params
+# Uses `input_file` and `log_dir` variable set by run_msstats.Rmd from params
 
 msstats_format <- FragPipetoMSstatsFormat(
   input = input_file,
@@ -11,5 +11,5 @@ msstats_format <- FragPipetoMSstatsFormat(
   use_log_file = TRUE,
   append = FALSE,
   verbose = TRUE,
-  log_file_path = NULL
+  log_file_path = file.path(log_dir, "MSstats_import.log")
 )

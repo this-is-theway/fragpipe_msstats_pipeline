@@ -8,22 +8,6 @@
 */
 
 
-/*
- * GENERATE_MANIFEST
- * -----------------
- * Builds a .fp-manifest from the staged MS files and an experimental-design CSV.
- *
- * Expected CSV columns (at minimum):
- *   file, experiment, bioreplicate, data_type
- *
- * Where:
- *   file         = original filename (basename, e.g. sample1.mzML)
- *   experiment   = experiment/group label
- *   bioreplicate = integer replicate id
- *   data_type    = DDA or DIA (default DDA)
- */
-
-
 
 process RAW_TO_MZML {
     tag "${raw_file.simpleName}"
@@ -40,7 +24,7 @@ process RAW_TO_MZML {
 
     script:
     """
-    mono ${params.thermorawfileparser} \
+    thermorawfileparser \
         -i=${raw_file} \
         -o=. \
         -f=2
@@ -140,7 +124,6 @@ process FRAGPIPE {
     echo "" >> updated.workflow
     echo "# ---- Nextflow pipeline overrides ----" >> updated.workflow
     echo "database.db-path=\${FASTA_PATH}" >> updated.workflow
-    echo "fragpipe-config.bin-thermorawfileparser=${params.thermorawfileparser}" >> updated.workflow
     echo "fragpipe-config.bin-python=${params.python_bin}" >> updated.workflow
 
     # If any input file is .d (Bruker timsTOF), enable IM-MS and in silico library prediction
