@@ -49,7 +49,7 @@ annotate_protein_results <- function(results_list,
       annotation <- tibble(header = headers) %>%
         mutate(
           db          = str_extract(header, "^(sp|tr)"),
-          Protein_ID  = str_extract(header, "(?<=\\|)[A-Z0-9]+(?=\\|)"),
+          Protein_ID  = str_extract(header, "(?<=\\|)[A-Za-z0-9_]+(?=\\|)"),
           Protein_entry  = str_extract(header, "(?<=\\|)[A-Z0-9_]+(?= )"),
           Protein_name = str_extract(header, "(?<= )[^|]+?(?= OS=)"),
           Organism    = str_extract(header, "(?<=OS=).+?(?= OX=)"),
