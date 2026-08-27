@@ -300,8 +300,12 @@ main_wd <- getwd()
 ```
 
 ```{r render-all-comparisons, results='asis'}
-# FIX: Ensure output.dir is set before knit_child to prevent setwd() errors
+# FIX: Ensure knitr evaluates the child documents in the Nextflow work
+# directory (main_wd) and NOT in the directory that holds the child .Rmd
+# (scripts_dir). Otherwise every relative output written by a child
+# (MSstats *.log files, comparison_results_*.xlsx) lands in report/scripts/.
 knitr::opts_knit$set(output.dir = main_wd)
+knitr::opts_knit$set(root.dir = main_wd)
 
 # Render analysis for each comparison using child template.
 # For the ludovic path, each child appends its annotated result to

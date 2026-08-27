@@ -79,7 +79,10 @@ contrast_mat <- create_contrast_from_csv(comparisons_df,
                                          annotation = metadata)
 
 test_results <- groupComparison(contrast.matrix = contrast_mat,
-                                data = summarized)
+                                data = summarized,
+                                use_log_file = TRUE,
+                                append = FALSE,
+                                log_file_path = file.path(log_dir, "MSstats_groupComparison.log"))
 
 
 
