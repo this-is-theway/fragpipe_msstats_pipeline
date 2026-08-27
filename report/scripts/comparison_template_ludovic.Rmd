@@ -38,7 +38,7 @@ summarized = dataProcess(
 )
 ```
 
-### PCA analysis
+### PCA analysis (post-imputation)
 
 ```{r}
 # From MSstats processed data
@@ -104,48 +104,37 @@ pca_plot
 ```
 
 ```{r include=FALSE, echo=FALSE, results='hide'}
-# ----------------------------------------------------------------------------
-# Per-comparison differential testing.
-# Helper functions and the annotation_table were sourced ONCE in the parent
-# document via 05_helpers_ludovic.R, so we don't redefine anything here.
-# ----------------------------------------------------------------------------
+source(file.path(scripts_dir, "05_differential_ludovic.R"))
 
-# Ensure we're in the report work dir before any file is written.
-if (exists("main_wd") && !is.null(main_wd)) setwd(main_wd)
-
-# Build single-row contrast matrix: condition_A = +1, condition_B = -1
-contrast_mat <- matrix(0, nrow = 1, ncol = length(conditions))
-colnames(contrast_mat) <- conditions
-rownames(contrast_mat) <- comparison_name
-contrast_mat[1, conditions[1]] <-  1
-contrast_mat[1, conditions[2]] <- -1
-
-test_results <- groupComparison(contrast.matrix = contrast_mat,
-                                data = summarized,
-                                use_log_file = TRUE,
-                                append = FALSE,
-                                log_file_path = file.path(
-                                  log_dir,
-                                  paste0("MSstats_groupComparison_", comparison_name, ".log")))
-
-# Annotate this single comparison using the pre-built annotation_table
-annotated_df <- annotate_single_result(test_results$ComparisonResult,
-                                       protein_col = "Protein")
-
-# Export to excel file (absolute path so it lands in the report output, not scripts/)
-library(openxlsx)
-write.xlsx(annotated_df,
-           file.path(main_wd, paste0("comparison_results_", comparison_name, ".xlsx")))
+# Ensure we're in the correct working directory (kept from original template)
+if (exists("main_wd") && !is.null(main_wd)) {
+  setwd(main_wd)
+}
 
 # Prepare per-comparison plots and summary stats
 comp_results <- prepare_comparison_results(
-  comparison_data = annotated_df,
+  comparison_data = annotated_results[[comparison_name]],
   comparison_name = comparison_name,
   pvalue_cutoff   = pvalue_cutoff,
   fc_cutoff       = fc_cutoff,
   highlight_genes = highlight_genes
 )
 ```
+
+### Summary Statistics
+
+| Metric | Count |
+|--------|-------|
+| Total Proteins | `r comp_results$n_total` |
+| Significantly Regulated | `r comp_results$n_sig` (`r round(comp_results$n_sig/comp_results$n_total*100, 1)`%) |
+| Upregulated (in `r conditions[1]`) | `r comp_results$n_up` |
+| Downregulated (in `r conditions[1]`) | `r comp_results$n_down` |
+
+**Key findings:**
+
+- **`r comp_results$n_up`** proteins significantly **upregulated** (adj.p < `r comp_results$pvalue_cutoff`, FC > `r comp_results$fc_cutoff`)
+- **`r comp_results$n_down`** proteins significantly **downregulated** (adj.p < `r comp_results$pvalue_cutoff`, FC < `r round(1/comp_results$fc_cutoff, 2)`)
+
 
 ### Volcano Plot
 
@@ -154,7 +143,7 @@ The volcano plot shows the relationship between statistical significance and fol
 comp_results$volcano_plot
 ```
 
-**Interpretation**: Points represent individual proteins. Red = upregulated, Blue = downregulated, Gray = not significant. Dashed lines indicate significance cutoffs (vertical: fold change, horizontal: adjusted p-value).
+**Interpretation**: Points represent individual proteins. Red = upregulated (in `r conditions[1]`), Blue = downregulated (in `r conditions[1]`), Gray = not significant. Dashed lines indicate significance cutoffs (vertical: fold change, horizontal: adjusted p-value).
 
 ### MA Plot
 
@@ -165,62 +154,48 @@ comp_results$ma_plot
 
 **Interpretation**: The x-axis shows average expression level, while the y-axis shows fold change. This plot helps identify whether differential expression is biased toward highly or lowly expressed proteins. Points should be distributed symmetrically around y=0 for unbiased results.
 
-### Summary Statistics
+### Results Table
 
-| Metric | Count |
-|--------|-------|
-| Total Proteins | `r comp_results$n_total` |
-| Significantly Regulated | `r comp_results$n_sig` (`r round(comp_results$n_sig/comp_results$n_total*100, 1)`%) |
-| Upregulated | `r comp_results$n_up` |
-| Downregulated | `r comp_results$n_down` |
+All quantified proteins with differential expression statistics. The **Significance** column marks proteins above thresholds (adj.p < `r comp_results$pvalue_cutoff`, |FC| > `r comp_results$fc_cutoff`). Use column filters to subset the table and update the plots above, or select points in the plots to highlight the corresponding rows.
 
-**Key findings:**
-
-- **`r comp_results$n_up`** proteins significantly **upregulated** (adj.p < `r comp_results$pvalue_cutoff`, FC > `r comp_results$fc_cutoff`)
-- **`r comp_results$n_down`** proteins significantly **downregulated** (adj.p < `r comp_results$pvalue_cutoff`, FC < `r round(1/comp_results$fc_cutoff, 2)`)
-
-### Upregulated Proteins
 ```{r echo=FALSE}
-if (nrow(comp_results$up_proteins) > 0) {
-    DT::datatable(comp_results$up_proteins,
-                  rownames = FALSE,
-                  filter = 'top',
-                  extensions = 'Buttons',
-                  caption = paste("Upregulated Proteins in", comparison_name),
-                  colnames = c("Gene_name", "Protein", "Ensembl_ID", "log2FC", "adj.pvalue", "Description"),
-                  options = list(
-                    pageLength = 10,
-                    scrollX = FALSE,
-                    dom = 'tlprfiB',
-                    buttons = c('copy', 'csv', 'excel', 'pdf'),
-                    rowCallback = JS(rowCallback)
-                  )) %>%
-                  formatSignif(columns = c("log2FC", "adj.pvalue"), digits = 3)
-} else {
-  cat("*No significantly upregulated proteins found.*\n")
-}
+DT::datatable(
+  comp_results$shared_data,
+  rownames = FALSE,
+  filter = "top",
+  extensions = "Buttons",
+  caption = paste("Differential Expression Results:", comparison_name),
+  options = list(
+    pageLength = 15,
+    scrollX = TRUE,
+    dom = "tlprfiB",
+    buttons = c("copy", "csv", "excel"),
+    columnDefs = list(
+      list(visible = FALSE, targets = comp_results$hide_indices)
+    ),
+    rowCallback = JS(rowCallback)
+  )
+) %>%
+  formatSignif(
+    columns = intersect(
+      c("log2FC", "SE", "pvalue", "adj.pvalue"),
+      names(comp_results$shared_data$origData())
+    ),
+    digits = 3
+  ) %>%
+  formatStyle(
+    "Significance",
+    backgroundColor = styleEqual(c("Up", "Down", "NS"), c("#ffd7d7", "#d7e8ff", "#ffffff")),
+    color           = styleEqual(c("Up", "Down", "NS"), c("#8b0000", "#00008b", "#555555")),
+    fontWeight      = styleEqual(c("Up", "Down", "NS"), c("bold", "bold", "normal"))
+  )
 ```
 
-### Downregulated Proteins
-```{r echo=FALSE}
-if (nrow(comp_results$down_proteins) > 0) {
-    DT::datatable(comp_results$down_proteins,
-                  rownames = FALSE,
-                  filter = 'top',
-                  extensions = 'Buttons',
-                  caption = paste("Downregulated Proteins in", comparison_name),
-                  colnames = c("Gene_name", "Protein", "Ensembl_ID", "log2FC", "adj.pvalue", "Description"),
-                  options = list(
-                    pageLength = 10,
-                    scrollX = FALSE,
-                    dom = 'tlprfiB',
-                    buttons = c('copy', 'csv', 'excel', 'pdf'),
-                    rowCallback = JS(rowCallback)
-                  )) %>%
-                  formatSignif(columns = c("log2FC", "adj.pvalue"), digits = 3)
-} else {
-  cat("*No significantly downregulated proteins found.*\n")
-}
+
+```{r echo=FALSE, out.width="75%", fig.align='center', fig.height=6}
+# Export to excel file
+library(openxlsx)
+write.xlsx(comp_results$data, paste("comparison_results_", comparison_name, ".xlsx"))
 ```
 
 ---

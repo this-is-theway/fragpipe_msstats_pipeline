@@ -10,6 +10,7 @@ process MSSTATS_REPORT {
     tag "MSstats Analysis"
     label 'process_medium'
     publishDir "${params.outdir}/msstats",      mode: 'copy', pattern: '*.{html,xlsx}'
+    publishDir "${params.outdir}/msstats", mode: 'copy', pattern: '*_files/**'
     publishDir "${params.outdir}/msstats/logs",  mode: 'copy', pattern: '*.log'
 
     container 'bioconductor/bioconductor_docker:devel'
@@ -25,6 +26,7 @@ process MSSTATS_REPORT {
 
     output:
     path "msstats_report.html",      emit: report
+    path "*_files/**",               emit: report_files, optional: true
     path "*.xlsx",                   emit: excel, optional: true
     path "*.log",                    emit: logs,  optional: true
 

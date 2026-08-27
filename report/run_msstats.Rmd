@@ -10,6 +10,7 @@ output:
     highlight: kate
     toc_depth: 2
     number_sections: true
+    self_contained: false 
     toc_float:
       collapsed: yes
       smooth_scroll: no
@@ -18,6 +19,7 @@ params:
   comparisons_file: "comparisons.csv"
   highlight_genes_file: "genes_to_highlight.txt"
   fasta_file: "proteome.fasta"
+  fasta_source : "uniprot"
   scripts_dir: "scripts"
   log_dir: "."
   imputation_method: "AFT"
@@ -142,6 +144,7 @@ log_dir             <- params$log_dir
 imputation_method   <- params$imputation_method
 pvalue_cutoff       <- params$pvalue_cutoff
 fc_cutoff           <- params$fc_cutoff
+fasta_source        <- params$fasta_source
 
 ```
 

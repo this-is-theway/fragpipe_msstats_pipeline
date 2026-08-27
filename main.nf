@@ -98,12 +98,12 @@ workflow {
     if (params.msstats_csv) {
         // ---- MSstats-only: reuse a pre-computed FragPipe result ----
         log.info "MSstats-only mode: using ${params.msstats_csv} (skipping FragPipe)"
-        msstats_ch = Channel.fromPath(params.msstats_csv, checkIfExists: true)
+        msstats_ch = channel.fromPath(params.msstats_csv, checkIfExists: true)
     }
     else {
                     
                 // input files are collected and converted to mzML if .raw format
-                input_ch = Channel.fromPath(params.input, type:'any')
+                input_ch = channel.fromPath(params.input, type:'any')
                 RAW_TO_MZML(input_ch)
 
                 // MS files — collected into a single list so they are all staged together
