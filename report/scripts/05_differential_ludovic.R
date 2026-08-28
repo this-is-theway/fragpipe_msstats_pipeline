@@ -42,32 +42,8 @@ annotate_protein_results <- function(results_list,
   
   # Extract headers
   headers <- names(fasta)
-<<<<<<< HEAD
-  
-  # Parse into annotation table
-  annotation <- tibble(header = headers) %>%
-    mutate(
-      db          = str_extract(header, "^(sp|tr)"),
-      Protein_ID  = str_extract(header, "(?<=\\|)[A-Za-z0-9_]+(?=\\|)"),
-      Protein_entry  = str_extract(header, "(?<=\\|)[A-Z0-9_]+(?= )"),
-      Protein_name = str_extract(header, "(?<= )[^|]+?(?= OS=)"),
-      Organism    = str_extract(header, "(?<=OS=).+?(?= OX=)"),
-      TaxID       = str_extract(header, "(?<=OX=)\\d+"),
-      Gene_name   = str_extract(header, "(?<=GN=)\\S+"),
-      PE_level    = str_extract(header, "(?<=PE=)\\d"),
-      Seq_version = str_extract(header, "(?<=SV=)\\d+"),
-      Length      = width(fasta)
-    ) %>%
-    filter(!str_detect(header, "^rev_|^DECOY_")) %>%
-    distinct(Protein_ID, .keep_all = TRUE)
-  
-  
-  # Annotate each dataframe in the list
-  annotated_list <- lapply(results_list, function(df) {
-=======
 
 
->>>>>>> dev
     
       # Parse into annotation table # nolint
       annotation <- tibble(header = headers) %>%
